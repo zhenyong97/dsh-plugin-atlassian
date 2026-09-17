@@ -14,6 +14,8 @@ mcp__atlassian__createJiraIssue
 mcp__atlassian__searchConfluenceUsingCql
 ```
 
+![设置 → Atlassian](assets/settings-page.png)
+
 ## 功能
 
 - 🔐 **OAuth 2.1 授权** —— 动态客户端注册 + PKCE + loopback 回调。授权信息（含 refresh token）
@@ -163,8 +165,13 @@ dsh plugin --profile desktop remove dsh-plugin-atlassian
 - **无自动重连**。Streamable HTTP 由 SDK 按请求恢复，access token 过期时 SDK 会自动用 refresh
   token 续期，常规情况下不需要重连。连接彻底断开（如换网）时，在设置页重连一次即可。
 - **未对 `expectedSite` 不匹配做硬阻断**。只提示，不阻止使用——授权到别的站点本身是合法操作。
-- **设置导航的图标由 DSH 外壳决定**。外壳按分区 id 硬编码图标，未知 id 一律回退成通用齿轮，
-  `settings.section` 也没有 icon 字段，插件无法替换。品牌标识因此画在设置页内部。
+- **设置导航图标是就地补丁，不是受支持的接口**。外壳按分区 id 硬编码导航图标（未知 id 一律
+  回退成通用齿轮），而 `settings.section` 只接受 `id`/`order`/`label`——整个客户端契约里没有
+  任何槽位支持图标。插件只能在自己的导航行上把那个 SVG 换掉：
+
+  ![导航图标](assets/settings-nav.png)
+
+  这是尽力而为的：匹配不上（比如外壳改了标记）时只会保留原来的齿轮，不影响任何功能。
 
 ## 架构与实现细节
 

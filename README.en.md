@@ -15,6 +15,8 @@ mcp__atlassian__createJiraIssue
 mcp__atlassian__searchConfluenceUsingCql
 ```
 
+![Settings → Atlassian](assets/settings-page.png)
+
 ## Features
 
 - 🔐 **OAuth 2.1 authorization** — dynamic client registration + PKCE + loopback callback.
@@ -184,9 +186,15 @@ site. **This is a notice, not a block.**
   drops entirely (e.g. a network change), reconnect once from Settings.
 - **A `expectedSite` mismatch is not a hard block.** It only warns — authorizing a different site is
   a legitimate thing to do.
-- **The Settings nav icon is owned by the shell.** The shell hardcodes a glyph per section id and
-  falls back to a generic gear for unknown ids, and `settings.section` has no icon field, so a plugin
-  cannot replace it. The brand mark is therefore drawn inside the page.
+- **The Settings nav icon is patched in place, not a supported interface.** The shell hardcodes a
+  nav glyph per section id (falling back to a generic gear for unknown ids), and `settings.section`
+  accepts only `id`/`order`/`label` — no slot in the whole client contract supports an icon. The
+  plugin can only swap that SVG on its own nav row:
+
+  ![Nav icon](assets/settings-nav.png)
+
+  It is best-effort: if it does not match (say the shell changes its markup) the original gear
+  simply stays, and nothing functional is affected.
 
 ## Architecture
 

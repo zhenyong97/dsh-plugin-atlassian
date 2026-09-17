@@ -13,6 +13,9 @@ import * as React from 'react'
 /** Endpoints the host half serves. Must match `src/routes.ts`. */
 const ROUTE_PREFIX = '/plugins/atlassian'
 
+/** Settings section label. Used for the registration AND to find the nav row. */
+const SECTION_LABEL = 'Atlassian'
+
 type Status = 'idle' | 'connecting' | 'authorizing' | 'ready' | 'error'
 
 interface StatusPayload {
@@ -121,15 +124,81 @@ function Row({ label, children }: { label: string; children: React.ReactNode }):
 }
 
 /**
- * The page's own mark.
+ * The mark's geometry. Shared by the React header below and the nav-glyph
+ * patch, so the two can never drift apart.
  *
- * The shell owns the Settings nav glyph: `navIcon()` in
- * `dsh-client-ui-settings-general` matches four shipped section ids and falls
- * back to a generic settings gear for everything else, and `settings.section`
- * accepts only `id`/`order`/`label` — there is no icon option to set. So the
- * nav row cannot carry this plugin's identity, and the content column (which
- * renders no heading of its own) is where it has to live.
+ * It is a link, not the Atlassian logo: this is an unofficial bridge, the mark
+ * has to read at 16px, and drawing someone's trademark into a third-party
+ * plugin's chrome is a licensing question nobody needs.
  */
+const MARK_PATHS = [
+  'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71',
+  'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
+]
+
+/** Marker attribute so the patch never re-wraps its own output. */
+const GLYPH_FLAG = 'data-dsh-atlassian-glyph'
+
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+/**
+ * Build the nav glyph as a detached SVG element.
+ *
+ * Built through the DOM rather than by parsing an HTML string: an `<svg>` only
+ * becomes an SVG-namespaced element when the parser knows it is in SVG
+ * context, and `innerHTML` on a `<div>` silently produces an inert HTML
+ * element that renders as nothing.
+ */
+function navGlyph(): Element {
+  const doc = document.implementation.createDocument(SVG_NS, 'svg', null)
+  const svg = doc.documentElement
+  svg.setAttribute('viewBox', '0 0 24 24')
+  svg.setAttribute('width', '16')
+  svg.setAttribute('height', '16')
+  svg.setAttribute('fill', 'none')
+  svg.setAttribute('stroke', 'currentColor')
+  svg.setAttribute('stroke-width', '1.6')
+  svg.setAttribute('stroke-linecap', 'round')
+  svg.setAttribute('stroke-linejoin', 'round')
+  svg.setAttribute(GLYPH_FLAG, '1')
+  for (const d of MARK_PATHS) {
+    const path = doc.createElementNS(SVG_NS, 'path')
+    path.setAttribute('d', d)
+    svg.appendChild(path)
+  }
+  return svg
+}
+
+/**
+ * Replace the shell's generic settings gear on this plugin's Settings nav row.
+ *
+ * There is no supported way to do this. `settings.section` accepts only
+ * `id`/`order`/`label` — no slot in the whole client contract has an `icon`
+ * option — and the shell hardcodes the nav glyph by section id,
+ * (`navIcon()` in `dsh-client-ui-settings-general`), falling back to a generic
+ * gear for every id it does not ship. So the row is found by its own label and
+ * the SVG swapped in place.
+ *
+ * This is a workaround, and it is written to fail safe: it matches only a
+ * `<button>` whose trimmed text is exactly our label (the page's own heading is
+ * a `<div>`, so it cannot be caught), it never throws, and if the shell changes
+ * its markup the only outcome is that the gear stays. Everything it touches is
+ * cosmetic and lives inside the settings modal.
+ */
+function patchNavGlyph(): void {
+  for (const button of document.querySelectorAll('button')) {
+    if ((button.textContent ?? '').trim() !== SECTION_LABEL) continue
+    const current = button.querySelector('svg')
+    if (current === null || current.hasAttribute(GLYPH_FLAG)) continue
+    const replacement = navGlyph()
+    // Adopt the shell's own class so sizing and colour stay the shell's business.
+    const className = current.getAttribute('class')
+    if (className !== null) replacement.setAttribute('class', className)
+    current.replaceWith(replacement)
+  }
+}
+
+/** The page's own mark, drawn from the same geometry as the nav glyph. */
 function Mark(): React.ReactElement {
   return (
     <span
@@ -155,8 +224,9 @@ function Mark(): React.ReactElement {
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        {MARK_PATHS.map((d) => (
+          <path key={d} d={d} />
+        ))}
       </svg>
     </span>
   )
@@ -180,6 +250,30 @@ function AtlassianSettings(): React.ReactElement {
     mounted.current = true
     return () => {
       mounted.current = false
+    }
+  }, [])
+
+  // Keep the nav row's glyph patched while this page is open. The observer is
+  // scoped to this page's lifetime — the only time the nav row and this
+  // component are on screen together — and coalesces bursts through a frame so
+  // the periodic status re-render does not turn into a querySelectorAll storm.
+  // The GLYPH_FLAG guard is what stops the patch's own mutation from
+  // re-entering: after the swap the guard hits and nothing more is written.
+  React.useEffect(() => {
+    let frame = 0
+    const schedule = (): void => {
+      if (frame !== 0) return
+      frame = window.requestAnimationFrame(() => {
+        frame = 0
+        patchNavGlyph()
+      })
+    }
+    schedule()
+    const observer = new MutationObserver(schedule)
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => {
+      observer.disconnect()
+      if (frame !== 0) window.cancelAnimationFrame(frame)
     }
   }, [])
 
@@ -344,7 +438,7 @@ export function apply(ctx: ClientContext): void {
         name: 'settings.section',
         id: 'atlassian',
         order: 30,
-        label: 'Atlassian',
+        label: SECTION_LABEL,
       },
       AtlassianSettings as unknown as React.ComponentType<never>,
     ),

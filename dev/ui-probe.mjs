@@ -176,9 +176,11 @@ try {
   // Assert on the page's own copy, not on a button label: the connect button
   // reads differently depending on connection state, and asserting on it made
   // an earlier run report NOT RENDERED for a page that had rendered fine.
+  // The header subtitle plus a row label are unique to this page and stable
+  // across connection states.
   const found =
     typeof panel === 'string' &&
-    panel.includes('Atlassian 官方远程 MCP') &&
+    panel.includes('官方远程 MCP 服务器') &&
     panel.includes('可用工具')
   console.log(`\nRESULT: Atlassian settings page ${found ? 'RENDERED' : 'NOT RENDERED'}`)
   if (cdp.problems.length > 0) {

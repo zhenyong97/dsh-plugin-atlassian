@@ -93,8 +93,24 @@ curl -X POST http://127.0.0.1:43199/plugins/atlassian/disconnect
 `status` 里出现带真实 `client_id` 的 `authorizationUrl`，就说明动态客户端注册、
 PKCE、loopback 回调端口全部就绪——剩下的只有浏览器里点批准那一下。
 
-## 清空授权状态
+## 授权状态存在哪里（重要）
+
+插件按 `(serverName, url)` 存一份会话文件：
+
+```
+$DSH_HOME/.dsh-atlassian/<serverName>-<url 的 sha256 前 12 位>.json
+```
+
+`overlay-no-browser.yml` 因此把 `serverName` 设成 **`atlassian-dev`**，而不是 `atlassian`。
+用生产名跑 dev profile 会**加载你正在用的那份授权**；一旦 access token 过期、refresh 失败，
+OAuth 客户端会清掉文件里的 `tokens` 字段，你的正式 profile 就得重新授权一次
+（`clientInformation` 会保留，所以只是点一下「连接 Atlassian」，不用重新注册）。
+换个名字就得到独立的 store 文件，互不影响。
+
+清空 dev 的授权状态：
 
 ```powershell
-Remove-Item "$env:USERPROFILE\.dsh\.dsh-atlassian\*.json"
+Remove-Item "$env:USERPROFILE\.dsh\.dsh-atlassian\atlassian-dev-*.json"
 ```
+
+> 别去删 `atlassian-*.json`——那是你日常 profile 的授权。
