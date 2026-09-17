@@ -121,6 +121,48 @@ function Row({ label, children }: { label: string; children: React.ReactNode }):
 }
 
 /**
+ * The page's own mark.
+ *
+ * The shell owns the Settings nav glyph: `navIcon()` in
+ * `dsh-client-ui-settings-general` matches four shipped section ids and falls
+ * back to a generic settings gear for everything else, and `settings.section`
+ * accepts only `id`/`order`/`label` — there is no icon option to set. So the
+ * nav row cannot carry this plugin's identity, and the content column (which
+ * renders no heading of its own) is where it has to live.
+ */
+function Mark(): React.ReactElement {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 34,
+        height: 34,
+        flex: 'none',
+        borderRadius: 9,
+        border: '1px solid rgba(127,127,127,.28)',
+      }}
+    >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
+    </span>
+  )
+}
+
+/**
  * The Settings → Atlassian page.
  *
  * State is owned by the host half; this component only polls it and forwards
@@ -200,9 +242,17 @@ function AtlassianSettings(): React.ReactElement {
 
   return (
     <div style={{ maxWidth: 640 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Mark />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: '1.05em', fontWeight: 600, lineHeight: '1.35em' }}>Atlassian</div>
+          <div style={{ opacity: 0.65, fontSize: '0.85em' }}>官方远程 MCP 服务器</div>
+        </div>
+      </div>
+
       <p style={{ opacity: 0.7, fontSize: '0.9em', marginTop: 0 }}>
-        通过 Atlassian 官方远程 MCP 服务器连接 Jira、Confluence、JSM、Bitbucket。授权在浏览器中完成，
-        返回后 agent 即可直接调用这些工具。
+        一次浏览器授权后，Jira、Confluence、Jira Service Management、Bitbucket 与 Compass 的工具
+        会作为原生工具出现在 agent 的工具列表里。授权在浏览器中完成，返回后即可直接调用。
       </p>
 
       <div style={box}>
