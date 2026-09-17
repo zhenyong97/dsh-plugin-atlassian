@@ -36,6 +36,33 @@ dsh plugin --profile desktop add github:zhenyong97/dsh-plugin-atlassian
 
 授权页没有自动打开时，设置页会显示一条可点击的授权链接。卡住就点 **断开连接** 再重连一次。
 
+![设置导航里的入口](assets/settings-nav.png)
+
+连上之后，直接对 agent 说人话就行：
+
+- 「列出 PROJ 项目里分配给我的、还没关闭的工单」
+- 「把这段需求拆成 5 个子任务，挂到 PROJ-123 下面」
+- 「把这次会议的结论写成 Confluence 页面，放到 Engineering 空间」
+- 「搜一下 Confluence 里带 release-notes 标签的页面，汇总成本周发布说明」
+
+## 会用到哪些工具
+
+授权成功后，这些工具会以 `mcp__atlassian__<名称>` 出现在 agent 的工具列表里。实际可用的集合
+取决于你在授权站点里有权限访问的产品：
+
+| 工具 | 用途 |
+|---|---|
+| `searchJiraIssuesUsingJql` | 用 JQL 搜索工单 |
+| `getJiraIssue` | 读取单个工单 |
+| `createJiraIssue` | 新建工单 |
+| `getVisibleJiraProjects` | 列出可见的 Jira 项目 |
+| `getTransitionsForJiraIssue` | 查看某个工单可用的状态流转 |
+| `searchConfluenceUsingCql` | 用 CQL 搜索 Confluence |
+| `getConfluencePage` | 读取页面内容 |
+| `createConfluencePage` / `updateConfluencePage` | 新建 / 更新页面 |
+| `atlassianUserInfo` | 当前授权账号 |
+| `getAccessibleAtlassianResources` | 该授权可访问的站点 |
+
 ## 配置
 
 默认配置开箱可用，通常不需要改。要改就在你 profile 的 `cordis.patch.yml` 里按 `id: atlassian`

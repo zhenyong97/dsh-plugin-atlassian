@@ -39,6 +39,33 @@ dsh plugin --profile desktop add github:zhenyong97/dsh-plugin-atlassian
 If the page does not open by itself, Settings shows a clickable authorization link. If the flow
 gets stuck, click **Disconnect** and reconnect.
 
+![The entry in the settings nav](assets/settings-nav.png)
+
+Once connected, just ask the agent in plain language:
+
+- "List the open issues assigned to me in the PROJ project"
+- "Break this requirement into 5 subtasks under PROJ-123"
+- "Write up these meeting notes as a Confluence page in the Engineering space"
+- "Find Confluence pages tagged release-notes and summarise this week's changes"
+
+## Tools you will get
+
+After authorizing, these appear in the agent's tool list as `mcp__atlassian__<name>`. Which ones are
+actually available depends on the products you can reach on the site you authorized:
+
+| Tool | Purpose |
+|---|---|
+| `searchJiraIssuesUsingJql` | Search issues with JQL |
+| `getJiraIssue` | Read a single issue |
+| `createJiraIssue` | Create an issue |
+| `getVisibleJiraProjects` | List the Jira projects you can see |
+| `getTransitionsForJiraIssue` | List the available status transitions for an issue |
+| `searchConfluenceUsingCql` | Search Confluence with CQL |
+| `getConfluencePage` | Read a page |
+| `createConfluencePage` / `updateConfluencePage` | Create / update a page |
+| `atlassianUserInfo` | The authorized account |
+| `getAccessibleAtlassianResources` | The sites this authorization can reach |
+
 ## Configuration
 
 The defaults work out of the box. To change one, override by `id: atlassian` in your profile's
