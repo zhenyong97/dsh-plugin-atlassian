@@ -1,0 +1,5 @@
+# Normalize line endings to LF for everyone, regardless of the developer's
+# `core.autocrlf` setting. Every tracked file here is LF today; without this a
+# Windows clone (this repo was created with autocrlf=true) would rewrite them to
+# CRLF and produce whole-file diffs on the next edit.
+* text=auto eol=lf

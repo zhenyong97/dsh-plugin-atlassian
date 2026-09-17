@@ -1,0 +1,20 @@
+# Development overlay: same row, but nothing opens a browser on its own.
+#
+# A patch replaces the targeted row's WHOLE config rather than merging into
+# it, so the full config is restated here.
+#
+#   dsh --profile atlassian-dev --patch ./dev/overlay-no-browser.yml --port 43199 --no-open
+#
+# Then drive the flow over HTTP, e.g.
+#   curl http://127.0.0.1:43199/plugins/atlassian/status
+- id: atlassian
+  config:
+    serverName: atlassian
+    url: https://mcp.atlassian.com/v1/mcp
+    redirectPort: 3334
+    # Empty so this sample works for any site. Put your own site here if you
+    # want the post-authorization mismatch check while developing.
+    expectedSite: ''
+    toolCallTimeoutMs: 60000
+    authorizationTimeoutMs: 300000
+    autoOpenBrowser: false

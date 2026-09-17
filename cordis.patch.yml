@@ -1,0 +1,30 @@
+# Bundle patch for dsh-plugin-atlassian.
+#
+# One row on the HOST composition: `dsh-mcp-client`-style tool registration
+# targets the host `tools` registry, which every session in the profile reads,
+# and this plugin publishes no service of its own — so no `isolate` realm is
+# needed and the row is safe to mount once for the whole process.
+#
+# `name` MUST equal the package name: `dsh-client-modules` resolves the
+# package's `package.json` by it to find the browser half.
+- insert:
+    - id: atlassian
+      name: dsh-plugin-atlassian
+      config:
+        serverName: atlassian
+        url: https://mcp.atlassian.com/v1/mcp
+        # Loopback port for the OAuth redirect URI. Must stay stable across
+        # restarts: the dynamic client registration binds this exact URI, and
+        # a changed port invalidates the stored client registration.
+        redirectPort: 3334
+        # Expected site, shown in Settings and checked after authorization.
+        #
+        # Deliberately empty. This patch ships inside the npm package, so it is
+        # every installer's default — pinning a real site here would show a
+        # bogus "site mismatch" warning to everyone else. Set your own site in
+        # YOUR profile's cordis.patch.yml instead. A patch replaces the whole
+        # `config` block rather than merging, so restate the other keys too.
+        expectedSite: ''
+        toolCallTimeoutMs: 60000
+        authorizationTimeoutMs: 300000
+        autoOpenBrowser: true
