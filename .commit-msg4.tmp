@@ -1,0 +1,25 @@
+docs: cut the README back to a user-facing page
+
+The README had grown into two documents in one. Contributor material had
+accumulated in it — a file-by-file architecture table, the generation-based
+tool-registration design, how site detection works, the single-file
+constraint on the client half, the tool-name truncation rules, and a
+development section that duplicated dev/README.md — on top of a
+configuration section whose longest blockquote explained why the packaged
+cordis.patch.yml ships expectedSite empty, which is a package author's
+concern rather than a user's.
+
+README.md: 247 -> 88 lines. README.en.md: 277 -> 117. Sections now:
+install, usage, configuration, uninstall, troubleshooting, known
+limitations, development. All of it is readable by someone who just wants
+the plugin to work; nothing else is in the way.
+
+The install command now names the GitHub source, which is what actually
+works today — the plugin is not on npm yet, so the bare package name would
+have installed nothing.
+
+Dropped material is not lost: the development steps and the scratch-profile
+walkthrough were already in dev/README.md, and the design notes are in the
+source they describe. assets/settings-nav.png is no longer embedded in the
+README but stays declared in screenshots.json, which is what storefronts
+read.
