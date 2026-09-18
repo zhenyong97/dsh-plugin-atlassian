@@ -22,10 +22,20 @@ DSH 自带的 `dsh-mcp-client` 不支持 OAuth；改用 API token 则每次工�
 ## 安装
 
 ```sh
-dsh plugin --profile desktop add github:zhenyong97/dsh-plugin-atlassian
+dsh plugin --profile desktop add https://github.com/zhenyong97/dsh-plugin-atlassian/releases/latest/download/dsh-plugin-atlassian.tgz
 ```
 
 装完**重启该 profile**。把 `desktop` 换成你实际使用的 profile 名。
+
+这条装的是 Release 上的**预构建**包：`.tgz` 里已经带了编译好的 `lib/`，安装时不跑构建，也就不会
+撞上 pnpm 默认拦截构建脚本那一步。要从源码装、自己编译，用仓库地址代替：
+
+```sh
+dsh plugin --profile desktop add github:zhenyong97/dsh-plugin-atlassian
+```
+
+（后者会跑 `prepare` 构建，pnpm 默认会拦下来，需要按它的提示把构建授权写进该 profile 的
+`pnpm-workspace.yaml`。）
 
 ## 连接 Atlassian
 

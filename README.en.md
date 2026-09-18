@@ -24,10 +24,21 @@ follows from the authorization, so no `cloudId` is ever passed.
 ## Install
 
 ```sh
-dsh plugin --profile desktop add github:zhenyong97/dsh-plugin-atlassian
+dsh plugin --profile desktop add https://github.com/zhenyong97/dsh-plugin-atlassian/releases/latest/download/dsh-plugin-atlassian.tgz
 ```
 
 **Restart that profile afterwards.** Replace `desktop` with the profile you actually use.
+
+That installs the **prebuilt** package from the release: the `.tgz` already carries the compiled
+`lib/`, so no build runs and pnpm's build-script block never comes up. To install from source and
+build it yourself, use the repository spec instead:
+
+```sh
+dsh plugin --profile desktop add github:zhenyong97/dsh-plugin-atlassian
+```
+
+(The source spec runs the `prepare` build, which pnpm blocks by default — it prints the exact key to
+add under `allowBuilds` in that profile's `pnpm-workspace.yaml`.)
 
 ## Connect Atlassian
 

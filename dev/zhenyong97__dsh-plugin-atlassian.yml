@@ -11,10 +11,24 @@
 #     `dsh.client`, which on its own is not installable)
 #   - the `dsh-plugin` topic is set on the repository
 #   - working code, not a placeholder
-# The repository age bar (1 day) is the one gate a fresh repo can still miss.
+# The repository age bar (1 day) is the one gate a fresh repo can still miss:
+# the current repository was created 2026-09-18 11:43, so the pull request can
+# go up from 2026-09-19 11:43 onwards.
+#
+# The pull request is already prepared: the fork `zhenyong97/awesome-dsh-plugin`
+# carries the branch `add-dsh-plugin-atlassian` with this file, so opening it is
+#   gh pr create --repo awesome-dsh-plugin/awesome-dsh-plugin \
+#     --head zhenyong97:add-dsh-plugin-atlassian \
+#     --title 'Add zhenyong97/dsh-plugin-atlassian'
+#
+# `tarball:` points at the release asset, whose name deliberately carries no
+# version — `releases/latest/download/` resolves `latest` at request time but
+# takes the filename literally, so a versioned name would 404 after the next
+# release.
 url: https://github.com/zhenyong97/dsh-plugin-atlassian
 name: zhenyong97/dsh-plugin-atlassian
 category: tools
+tarball: https://github.com/zhenyong97/dsh-plugin-atlassian/releases/latest/download/dsh-plugin-atlassian.tgz
 description:
   en: Bridges Atlassian's official remote MCP server over OAuth 2.1, adding Jira, Confluence, JSM and Bitbucket tools plus a Jira board for handing issues to an agent.
   zh: 通过 OAuth 2.1 接入 Atlassian 官方远程 MCP 服务器，把 Jira、Confluence、JSM、Bitbucket 的工具接进 DSH，并提供一个 Jira 看板用于把工单交给 agent。
