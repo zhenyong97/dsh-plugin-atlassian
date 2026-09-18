@@ -185,6 +185,63 @@ export class AtlassianBridge {
     })
   }
 
+  /**
+   * Every raw MCP tool name currently discovered, in registration order.
+   *
+   * Diagnostics only: the Jira panel's tool lookup is pattern-based, and when a
+   * pattern misses, this is the one thing that says whether the server renamed
+   * a tool or authorized none at all.
+   */
+  rawNames(): readonly string[] {
+    return [...this.#rawNames.values()]
+  }
+
+  /**
+   * The raw MCP name of a discovered tool, found by pattern over the raw names.
+   *
+   * The Jira panel reaches the same server the model does, but by capability
+   * rather than by a hardcoded tool name: names carry a product prefix
+   * (`searchJiraIssues…`) and could be renamed server-side, so matching a
+   * fragment keeps the panel working while a literal name would silently rot.
+   *
+   * @param pattern - Case-insensitive fragment of the MCP tool name.
+   * @returns The raw name to pass to `tools/call`, or undefined when absent.
+   */
+  rawNameMatching(pattern: RegExp): string | undefined {
+    for (const raw of this.#rawNames.values()) {
+      if (pattern.test(raw)) return raw
+    }
+    return undefined
+  }
+
+  /**
+   * Call one discovered tool directly, without going through a model turn.
+   *
+   * Same connection, same authorization, same timeout, same error mapping the
+   * model already gets. An MCP-level error rejects rather than resolving, so a
+   * panel caller can never mistake a failure for data.
+   *
+   * @param rawName - Exact MCP tool name.
+   * @param args - Tool arguments.
+   * @param timeoutMs - Optional deadline override for a slow call.
+   * @returns The MCP content blocks.
+   */
+  async callTool(
+    rawName: string,
+    args: Record<string, unknown>,
+    timeoutMs?: number,
+  ): Promise<readonly unknown[]> {
+    const client = this.#client
+    if (client === undefined || this.#status !== 'ready') {
+      throw new Error('未连接 Atlassian — 请先到 设置 → Atlassian 完成连接')
+    }
+    const result = (await client.callTool({ name: rawName, arguments: args }, undefined, {
+      timeout: timeoutMs ?? this.#options.toolCallTimeoutMs,
+    })) as CallToolResult
+    if (result.isError === true) throw new Error(extractText(result.content, rawName))
+    return result.content
+  }
+
   /** A view for the Settings page. */
   snapshot(): BridgeSnapshot {
     const site = this.#options.store.current.site

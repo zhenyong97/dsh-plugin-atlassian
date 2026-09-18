@@ -1,0 +1,20 @@
+# Draft entry for the awesome-dsh-plugin list.
+#
+# Copy this file to `data/plugins/zhenyong97__dsh-plugin-atlassian.yml` in a
+# clone of https://github.com/awesome-dsh-plugin/awesome-dsh-plugin and open a
+# pull request adding just that one file. Nothing else in this repository is
+# part of the submission — the two READMEs over there are generated, and the
+# screenshots come from this repository's own `screenshots.json`.
+#
+# Requirements from contributing.md that this repository already meets:
+#   - `dsh.bundle` is declared in package.json (the install path, as opposed to
+#     `dsh.client`, which on its own is not installable)
+#   - the `dsh-plugin` topic is set on the repository
+#   - working code, not a placeholder
+# The repository age bar (1 day) is the one gate a fresh repo can still miss.
+url: https://github.com/zhenyong97/dsh-plugin-atlassian
+name: zhenyong97/dsh-plugin-atlassian
+category: tools
+description:
+  en: Bridges Atlassian's official remote MCP server over OAuth 2.1, adding Jira, Confluence, JSM and Bitbucket tools plus a Jira board for handing issues to an agent.
+  zh: 通过 OAuth 2.1 接入 Atlassian 官方远程 MCP 服务器，把 Jira、Confluence、JSM、Bitbucket 的工具接进 DSH，并提供一个 Jira 看板用于把工单交给 agent。

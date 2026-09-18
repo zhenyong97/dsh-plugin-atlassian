@@ -1,0 +1,40 @@
+# Capture overlay: the README screenshot run.
+#
+#   dsh --profile atlassian-dev --patch ./dev/overlay-capture.yml --port 43199 --no-open
+#
+# Same shape as overlay-no-browser.yml, with two differences that exist for the
+# screenshots rather than for the developer:
+#
+# - `board.jql` is left empty so the board opens on the built-in view. Pin your
+#   own project here (e.g. `project = YOURPROJECT ORDER BY updated DESC`) if you
+#   want the captured board to come out the same on every run — but note that a
+#   real key in this file is a real key in a public repository.
+# - `redirectPort` is 3340, the port overlay-no-browser.yml already pins. It is
+#   free while the desktop profile holds 3334 for the production authorization,
+#   and the session file this run reads carries no `redirectUri`, so the plugin
+#   does not treat the moved port as a reason to discard its tokens.
+#
+# A patch replaces the targeted row's WHOLE config rather than merging into it,
+# so the full config is restated here.
+- id: atlassian
+  config:
+    # Deliberately not `atlassian`: the session store is keyed by
+    # (serverName, url), and this profile keeps its own copy of the
+    # authorization so a capture run can never disturb the daily one.
+    serverName: atlassian-dev
+    url: https://mcp.atlassian.com/v1/mcp
+    redirectPort: 3340
+    expectedSite: ''
+    toolCallTimeoutMs: 60000
+    authorizationTimeoutMs: 300000
+    autoOpenBrowser: false
+    board:
+      jql: ''
+      limit: 25
+      timeoutMs: 90000
+      # Inert on purpose. `capture-screenshots.mjs` itself dispatches nothing —
+      # it only opens menus and dismisses them — but `board-probe.mjs` does
+      # dispatch for real, and running it against this overlay with an empty
+      # template would create a session in your own workspace and start an
+      # agent on a live ticket.
+      promptTemplate: '只回复一行确认，不要读写文件。工单：{{key}}'

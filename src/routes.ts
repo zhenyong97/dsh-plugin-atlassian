@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AtlassianBridge, BridgeSnapshot } from './bridge.js'
+import { BoardError, type JiraBoard } from './board.js'
 
-/** Everything the Settings page talks to lives under this prefix. */
+/** Everything the Settings page and the Jira board talk to lives under this prefix. */
 export const ROUTE_PREFIX = '/plugins/atlassian'
 
 /** The `webServer` service face this plugin needs (typed structurally). */
@@ -18,11 +19,23 @@ export interface RouteRegistrar {
  *
  * Present in web profiles: it rejects cross-site and unauthenticated callers
  * by Host/Origin and the browser login cookie. These routes are reached only
- * from the settings page, so the fence is exactly right for them — but the
- * plugin must still work without it, hence the optional shape.
+ * from the settings page and the board panel — both same-origin UI — so the
+ * fence is exactly right for them, and the plugin must still work without it.
  */
 export interface RequestFence {
   requestRejection(req: IncomingMessage): number | undefined
+}
+
+/** The board settings the endpoints enforce and the panel reads. */
+export interface BoardRouteOptions {
+  /** Deployment default JQL, used when a request does not override it. */
+  jql: string
+  /** Issues fetched per refresh. */
+  limit: number
+  /** Deadline for one board read. */
+  timeoutMs: number
+  /** Instruction template for a hand-over; empty selects the built-in one. */
+  promptTemplate: string
 }
 
 function sendJson(res: ServerResponse, status: number, payload: unknown): void {
@@ -36,23 +49,80 @@ function sendJson(res: ServerResponse, status: number, payload: unknown): void {
 interface StatusBody extends Omit<BridgeSnapshot, 'siteMismatch'> {
   siteMismatch: boolean
   ok: boolean
+  /** Deployment board defaults, so the panel never hardcodes its own copy. */
+  board: Pick<BoardRouteOptions, 'jql' | 'limit' | 'promptTemplate'>
 }
 
-function body(bridge: AtlassianBridge, ok: boolean): StatusBody {
-  return { ...bridge.snapshot(), ok }
+function body(bridge: AtlassianBridge, ok: boolean, options: BoardRouteOptions): StatusBody {
+  return {
+    ...bridge.snapshot(),
+    ok,
+    board: { jql: options.jql, limit: options.limit, promptTemplate: options.promptTemplate },
+  }
+}
+
+/** A ceiling on request bodies: every one of them is a small JSON object. */
+const MAX_BODY_BYTES = 64 * 1024
+
+/**
+ * Read and parse a JSON request body.
+ *
+ * Bounded on purpose: the route is reachable from the page, and an unbounded
+ * `for await` over `req` would let one request hold as much memory as it likes.
+ */
+async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = []
+  let size = 0
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk))
+    size += buffer.length
+    if (size > MAX_BODY_BYTES) throw new BoardError('too-large', '请求体过大')
+    chunks.push(buffer)
+  }
+  if (size === 0) return {}
+  const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new BoardError('bad-request', '请求体必须是一个 JSON 对象')
+  }
+  return parsed as Record<string, unknown>
+}
+
+/** A required non-empty string field of a request body. */
+function requireString(input: Record<string, unknown>, field: string): string {
+  const value = input[field]
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new BoardError('bad-request', `缺少字段 ${field}`)
+  }
+  return value
 }
 
 /**
- * Register the Settings page's three endpoints behind one prefix route.
+ * Register this plugin's HTTP endpoints behind one prefix route.
+ *
+ * Path shapes:
+ * - `GET  /status`, `POST /connect`, `POST /disconnect` — the Settings page.
+ * - `GET  /board?jql=` — issues for the board, grouped client-side.
+ * - `GET  /projects` — projects the authorization can see.
+ * - `GET  /issue/<key>` — one issue with its description.
+ * - `GET  /issue/<key>/transitions` — transitions currently offered.
+ * - `POST /transition` — apply one transition by id.
  *
  * @param web - The composition's web server service.
- * @param bridge - The connection the endpoints drive.
+ * @param bridge - The connection the Settings endpoints drive.
+ * @param board - The Jira projection the board endpoints read.
+ * @param options - Deployment defaults for board reads.
  * @param fence - Optional request fence, when the `connection` service exists.
  * @returns A disposer that unregisters the route.
+ *
+ * Also serves `GET /debug-tools`: the raw MCP tool names this connection
+ * discovered, which is the only way to tell a renamed tool from an
+ * authorization that granted no Jira product.
  */
 export function registerRoutes(
   web: RouteRegistrar,
   bridge: AtlassianBridge,
+  board: JiraBoard,
+  options: BoardRouteOptions,
   fence: RequestFence | undefined,
 ): () => void {
   return web.register({
@@ -68,13 +138,14 @@ export function registerRoutes(
         }
       }
 
-      const pathname = new URL(String(req.url), 'http://localhost').pathname
+      const url = new URL(String(req.url), 'http://localhost')
+      const pathname = url.pathname
       const action = pathname.slice(ROUTE_PREFIX.length).replace(/^\//, '')
       const method = req.method ?? 'GET'
 
       try {
         if (action === 'status' && method === 'GET') {
-          sendJson(res, 200, body(bridge, true))
+          sendJson(res, 200, body(bridge, true, options))
           return
         }
         if (action === 'connect' && method === 'POST') {
@@ -87,8 +158,59 @@ export function registerRoutes(
           sendJson(res, 200, { ...snapshot, ok: true })
           return
         }
+        if (action === 'debug-tools' && method === 'GET') {
+          // Diagnostics for the board's pattern-based lookup: when a pattern
+          // misses, this is what distinguishes "renamed server-side" from
+          // "authorized no Jira at all".
+          sendJson(res, 200, { ok: true, names: bridge.rawNames() })
+          return
+        }
+
+        if (action === 'board' && method === 'GET') {
+          const requested = url.searchParams.get('jql')
+          const payload = await board.load({
+            jql: requested === null ? options.jql : requested,
+            limit: options.limit,
+            timeoutMs: options.timeoutMs,
+          })
+          sendJson(res, 200, { ok: true, ...payload, limit: options.limit })
+          return
+        }
+        if (action === 'projects' && method === 'GET') {
+          const projects = await board.projects(options.timeoutMs)
+          sendJson(res, 200, { ok: true, projects })
+          return
+        }
+        if (action === 'transition' && method === 'POST') {
+          const input = await readJsonBody(req)
+          const key = requireString(input, 'key')
+          const transitionId = requireString(input, 'transitionId')
+          await board.transition(key, transitionId, options.timeoutMs)
+          sendJson(res, 200, { ok: true })
+          return
+        }
+
+        const issueMatch = /^issue\/([^/]+)$/.exec(action)
+        if (issueMatch !== null && method === 'GET') {
+          const key = decodeURIComponent(issueMatch[1] ?? '')
+          const detail = await board.detail(key, options.timeoutMs)
+          sendJson(res, 200, { ok: true, ...detail })
+          return
+        }
+        const transitionMatch = /^issue\/([^/]+)\/transitions$/.exec(action)
+        if (transitionMatch !== null && method === 'GET') {
+          const key = decodeURIComponent(transitionMatch[1] ?? '')
+          const transitions = await board.transitions(key, options.timeoutMs)
+          sendJson(res, 200, { ok: true, transitions })
+          return
+        }
+
         sendJson(res, 404, { ok: false, error: `unknown endpoint: ${method} ${pathname}` })
       } catch (error) {
+        if (error instanceof BoardError) {
+          sendJson(res, 400, { ok: false, code: error.code, error: error.message })
+          return
+        }
         sendJson(res, 500, {
           ok: false,
           error: error instanceof Error ? error.message : String(error),

@@ -29,17 +29,19 @@ dsh plugin --profile desktop add github:zhenyong97/dsh-plugin-atlassian
 
 **Restart that profile afterwards.** Replace `desktop` with the profile you actually use.
 
-## Usage
+## Connect Atlassian
 
 1. Open **Settings → Atlassian**
 2. Click **Connect Atlassian**
 3. Approve the request on Atlassian's authorization page, **choosing the site to authorize**
-4. The status becomes **Connected** and the tools are available
-
-If the page does not open by itself, Settings shows a clickable authorization link. If the flow
-gets stuck, click **Disconnect** and reconnect.
+4. The status becomes **Connected**, and Settings lists the site and the tools it exposes
 
 ![The entry in the settings nav](assets/settings-nav.png)
+
+The settings page at the top of this README is that connected state: the site row shows whichever site
+you authorized, and the tool count on this machine was 32. If the authorization page does not open by
+itself, Settings shows a clickable authorization link. If the flow gets stuck, click **Disconnect**
+and reconnect.
 
 Once connected, just ask the agent in plain language:
 
@@ -47,6 +49,84 @@ Once connected, just ask the agent in plain language:
 - "Break this requirement into 5 subtasks under PROJ-123"
 - "Write up these meeting notes as a Confluence page in the Engineering space"
 - "Find Confluence pages tagged release-notes and summarise this week's changes"
+
+## How to use it
+
+### 1. Open the Jira board
+
+After authorizing, the sidebar gains a Jira icon; click it to open the board. It reads the same MCP
+connection, so it needs no extra token or cloudId configuration:
+
+![The Jira board](assets/jira-board.png)
+
+- **Columns are statuses.** Every Jira status is a column, ordered by status category (to do → in
+  progress → done); within a category they are ordered by name, so a refresh never reshuffles the
+  columns.
+- **Filter by project.** The project chips are derived from the issues the current query actually
+  returned, each carrying its count — so clicking one cannot land on an empty project. Click again
+  to clear it, or use **Clear filters** to reset everything at once.
+- **Filter by status category.** The to do / in progress / done chips carry counts too, and combine
+  with the project filter as AND.
+- **The search box** matches substrings in the key, the summary and the project name, entirely
+  client-side, so it issues no requests.
+- **View switch.** "In progress" excludes completed issues (the default, so a long backlog cannot
+  bury the work in flight); "All" includes them.
+- **The JQL is shown and editable**, and takes effect on Enter — the JQL *is* the board's real
+  state, and hiding it turns "the issue count looks wrong" into a bug report. Once edited, a
+  **Reset** appears to return to the selected view.
+- The status spine down the left of each card, the project chip at its foot, and the totals in the
+  header are all there to be read at a glance.
+- The board refreshes itself every 60 seconds, skipping while the page is hidden; the footer says
+  whether the per-fetch limit was reached.
+
+### 2. Read an issue and confirm a transition
+
+**Click any card** and the drawer opens on the right: the description (rendered Markdown), priority,
+assignee, project, and the **status transitions the server currently offers** — the buttons are
+exactly what the server returned, never a guess. The drawer header is sticky, so the buttons stay
+reachable while you scroll a long description.
+
+![The issue drawer and its transitions](assets/board-detail.png)
+
+A transition is applied when you confirm it in the drawer; the agent side is explicitly told not to
+change issue status on its own.
+
+### 3. Hand an issue to an agent
+
+**Right-click any card** to open the menu and choose a destination in place:
+
+![The hand-over menu](assets/board-handoff.png)
+
+| Menu item | What it does |
+|---|---|
+| **New session (current workspace)** | Opens a session in the current / most recent workspace and delivers there |
+| **Send to current session** | Queues into the session you already have open, without interrupting what it is doing |
+| **Expand a workspace → ＋ New session** | Opens a session in that workspace and delivers there |
+| **Expand a workspace → a session** | Delivers into that existing session (running ones first) |
+| **Copy prompt** | Copies to the clipboard only; you decide where it goes |
+
+Delivery leaves you **on the board** with the confirmation in place, so you can hand over the next
+batch straight away; the target session is one click away in the sidebar.
+
+The instruction comes from `board.promptTemplate` (`{{key}}` / `{{summary}}` are substituted). The
+built-in template is deliberately constrained: read the code before editing, change only what this
+task needs, show checkable evidence, and **explicitly tell the agent not to change the Jira workflow
+itself** — status transitions stay your call on the board. A custom template is written per issue,
+so a batch hand-over generates one per issue.
+
+### 4. Select several and hand them over in one go
+
+`Shift+click` selects the range from the previous card, in the order you see them (left to right,
+top to bottom). As soon as anything is selected, the cards grow checkboxes and a batch bar appears
+at the foot of the panel:
+
+![Multi-select and the batch bar](assets/board-selection.png)
+
+Several issues can go to the same session, or into a new one — they are combined into **one** prompt
+rather than several interleaved ones.
+
+Cards can also be dragged onto the Jira icon in the sidebar: dropping them selects the issues you
+dragged and opens the same menu for you to confirm the target.
 
 ## Tools you will get
 
@@ -77,6 +157,10 @@ The defaults work out of the box. To change one, override by `id: atlassian` in 
 | `redirectPort` | `3334` | OAuth callback port — keep it stable |
 | `expectedSite` | empty | When set, the authorized site is checked and a mismatch reported |
 | `autoOpenBrowser` | `true` | Open the browser when **Connect Atlassian** is clicked |
+| `board.jql` | empty | JQL the board opens with; empty selects the built-in "in progress" view (excludes done) |
+| `board.limit` | `50` | Issues fetched per refresh (the server caps a page at 100) |
+| `board.timeoutMs` | `90000` | Deadline for one board read |
+| `board.promptTemplate` | empty | Instruction sent when an issue is handed to an agent; empty selects the built-in template |
 
 Remaining fields and the full defaults are in `cordis.patch.yml`.
 
@@ -137,7 +221,8 @@ notice, not a block.**
 npm install && npm run build   # tsc(host) + tsc(client) + bundle the client
 ```
 
-Verifying on a scratch profile, plus the two regression scripts, is covered in `dev/README.md`.
+Verifying on a scratch profile, the two regression scripts, and the README / storefront capture flow
+are covered in `dev/README.md`.
 
 ## License
 

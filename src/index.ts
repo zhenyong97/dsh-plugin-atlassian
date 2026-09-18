@@ -1,7 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { AtlassianBridge } from './bridge.js'
+import { createBoard, type JiraBoard } from './board.js'
 import { Config, type Config as ConfigShape } from './config.js'
-import { registerRoutes, type RequestFence, type RouteRegistrar } from './routes.js'
+import { registerRoutes, type BoardRouteOptions, type RequestFence, type RouteRegistrar } from './routes.js'
 import { SessionStore, sessionFileFor } from './store.js'
 
 /** Cordis plugin name, used by loader diagnostics. */
@@ -52,6 +53,18 @@ export function apply(ctx: Context, config: ConfigShape): void {
     },
   )
 
+  const board = createBoard(bridge)
+
+  // One object shared by the route handler (which enforces the defaults) and
+  // the client registration (which labels its UI with them), so the two can
+  // never disagree about which JQL or limit is in force.
+  const boardOptions: BoardRouteOptions = {
+    jql: config.board.jql,
+    limit: config.board.limit,
+    timeoutMs: config.board.timeoutMs,
+    promptTemplate: config.board.promptTemplate,
+  }
+
   // Everything the bridge owns — the callback server, the transport, every
   // registered tool — is released here, so HMR replaces the row cleanly.
   ctx.effect(
@@ -61,7 +74,7 @@ export function apply(ctx: Context, config: ConfigShape): void {
     'atlassian:bridge',
   )
 
-  bindRoutes(ctx, bridge)
+  bindRoutes(ctx, bridge, board, boardOptions)
 
   void bridge.start().catch((error: unknown) => {
     ctx.logger.error(`atlassian: startup failed: ${String(error)}`)
@@ -77,7 +90,12 @@ export function apply(ctx: Context, config: ConfigShape): void {
  * a hard `inject` would instead keep this row dormant in every profile that
  * has no browser UI at all.
  */
-function bindRoutes(ctx: Context, bridge: AtlassianBridge): void {
+function bindRoutes(
+  ctx: Context,
+  bridge: AtlassianBridge,
+  board: JiraBoard,
+  options: BoardRouteOptions,
+): void {
   const scope = ctx as unknown as ServiceScope
 
   ctx.effect(() => {
@@ -97,11 +115,11 @@ function bindRoutes(ctx: Context, bridge: AtlassianBridge): void {
 
       const wasFenced = fenced
       dispose?.()
-      dispose = registerRoutes(web, bridge, fence)
+      dispose = registerRoutes(web, bridge, board, options, fence)
       fenced = fence !== undefined
       if (!wasFenced || fenced) {
         ctx.logger.info(
-          `atlassian: settings endpoints registered${fenced ? '' : ' — the connection request fence is not available yet'}`,
+          `atlassian: endpoints registered${fenced ? '' : ' — the connection request fence is not available yet'}`,
         )
       }
     }

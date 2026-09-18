@@ -28,3 +28,21 @@
         toolCallTimeoutMs: 60000
         authorizationTimeoutMs: 300000
         autoOpenBrowser: true
+        # The Jira board panel.
+        board:
+          # JQL the board opens with. Empty selects the built-in default view,
+          # `updated >= -180d AND statusCategory != Done` — work in flight,
+          # because a long backlog otherwise buries it. Every view is bounded:
+          # Atlassian refuses a wholly unconstrained search. The panel's own view
+          # selector and JQL box override this for the session.
+          jql: ''
+          # Issues fetched per refresh (the server caps a page at 100).
+          limit: 50
+          # Deadline for one board read: a search, plus the site-registry
+          # lookup on a cold start, so it is allowed to outlast a tool call.
+          timeoutMs: 90000
+          # Instruction sent when an issue is handed to an agent. `{{key}}` and
+          # `{{summary}}` are substituted; empty selects the built-in template,
+          # which tells the agent to verify before editing and NOT to change the
+          # Jira workflow — status transitions stay the user's call.
+          promptTemplate: ''

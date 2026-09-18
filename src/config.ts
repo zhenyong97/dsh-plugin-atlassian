@@ -36,6 +36,47 @@ export interface Config {
   authorizationTimeoutMs: number
   /** Open the system browser automatically when authorization is required. */
   autoOpenBrowser: boolean
+  /** Settings for the Jira board panel. */
+  board: BoardConfig
+}
+
+/**
+ * The board panel's deployment-owned defaults.
+ *
+ * `jql` is the important one: Atlassian refuses a wholly unconstrained search,
+ * so the board always has *some* query, and this is the one it opens with. The
+ * panel lets the user override it for the session; this value is what a fresh
+ * visit starts from.
+ */
+export interface BoardConfig {
+  /**
+   * JQL the panel opens with.
+   *
+   * Empty selects the built-in default view — `updated >= -180d AND
+   * statusCategory != Done`, i.e. work in flight — because a long backlog
+   * otherwise buries the issues anyone is actually looking at. The panel's view
+   * selector and JQL box change this for the session only.
+   */
+  jql: string
+  /** Cap on issues fetched per refresh (server maximum is 100). */
+  limit: number
+  /**
+   * Extra deadline for board reads, on top of `toolCallTimeoutMs`.
+   *
+   * A board read is a search plus the site-registry lookup on a cold start, so
+   * it is allowed to run longer than a single model-facing tool call.
+   */
+  timeoutMs: number
+  /**
+   * Instruction sent to an agent when an issue is handed over.
+   *
+   * `{{key}}` and `{{summary}}` are substituted; an empty string selects the
+   * built-in template. It is deliberately a full instruction rather than an
+   * issue dump, because this is the plugin's chance to bound the delegated
+   * work: Jira workflows must not be changed by an agent that cannot verify
+   * the claim.
+   */
+  promptTemplate: string
 }
 
 export const Config = z.object({
@@ -46,4 +87,13 @@ export const Config = z.object({
   expectedSite: z.string().default(''),
   authorizationTimeoutMs: z.number().step(1).min(1000).default(300000),
   autoOpenBrowser: z.boolean().default(true),
+  // Deliberately not `.default({})`: schemastery's object default needs every
+  // key, and the per-field defaults below already make an omitted `board:`
+  // block resolve to the full shape.
+  board: z.object({
+    jql: z.string().default(''),
+    limit: z.number().step(1).min(1).max(100).default(50),
+    timeoutMs: z.number().step(1).min(1000).default(90000),
+    promptTemplate: z.string().default(''),
+  }),
 })

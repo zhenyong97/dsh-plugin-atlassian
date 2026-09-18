@@ -17,10 +17,28 @@
     # this profile its own store file and makes that impossible.
     serverName: atlassian-dev
     url: https://mcp.atlassian.com/v1/mcp
-    redirectPort: 3334
+    # Pinned, and deliberately NOT the production 3334. The dynamic client
+    # registration binds this exact redirect URI, so a port that moves between
+    # runs invalidates the registration and forces a fresh authorization — and
+    # the desktop profile holds 3334 whenever it is running, which would push
+    # every dev restart onto an ephemeral port.
+    redirectPort: 3340
     # Empty so this sample works for any site. Put your own site here if you
     # want the post-authorization mismatch check while developing.
     expectedSite: ''
     toolCallTimeoutMs: 60000
     authorizationTimeoutMs: 300000
     autoOpenBrowser: false
+    # Board defaults: what the panel opens with. Exercises the whole
+    # config → /status → panel path. Left empty for the built-in bounded
+    # fallback: this file is committed, so a real project key here would be a
+    # real project key in a public repository. Put yours back locally if you
+    # want the panel to open pinned to it.
+    board:
+      jql: ''
+      limit: 25
+      timeoutMs: 90000
+      # Empty selects the built-in template. To verify a hand-over without the
+      # agent developing anything, set an inert one here, e.g.
+      #   promptTemplate: '只回复一行确认，不要读写文件。工单：{{key}}'
+      promptTemplate: ''
